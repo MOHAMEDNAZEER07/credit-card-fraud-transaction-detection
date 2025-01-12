@@ -5,6 +5,7 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import StandardScaler  # Import scaler for feature scaling
 import streamlit as st
 
 # Load data
@@ -22,11 +23,15 @@ data = pd.concat([legit_sample, fraud], axis=0)
 X = data.drop(columns="Class", axis=1)
 y = data["Class"]
 
+# Feature scaling (assuming this was done during training)
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
 # Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=2)
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, stratify=y, random_state=2)
 
 # Train logistic regression model
-model = LogisticRegression(max_iter=1000)
+model = LogisticRegression(max_iter=1000, random_state=2)
 model.fit(X_train, y_train)
 
 # Evaluate model performance
@@ -59,9 +64,11 @@ if uploaded_file is not None:
         # Ensure the input data does not have the 'Class' column and matches the feature columns
         input_data = input_data.drop(columns=['Class'], errors='ignore')
         expected_columns = X.columns.tolist()
+        
         if all(col in input_data.columns for col in expected_columns):
             input_data = input_data[expected_columns]  # Reorder columns to match training data
-            predictions = model.predict(input_data)
+            input_data_scaled = scaler.transform(input_data)  # Scale the input data
+            predictions = model.predict(input_data_scaled)
             input_data['Prediction'] = predictions
             input_data['Result'] = input_data['Prediction'].apply(lambda x: 'Legitimate' if x == 0 else 'Fraudulent')
 
