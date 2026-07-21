@@ -5,40 +5,57 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
-from sklearn.preprocessing import StandardScaler  # Import scaler for feature scaling
+from sklearn.preprocessing import StandardScaler
 import streamlit as st
 
-# Load data
-data = pd.read_csv('credit/creditcard.csv')
+# -------------------------------
+# Cached data loading & training
+# -------------------------------
+@st.cache_data
+def load_data():
+    return pd.read_csv('credit/creditcard.csv')
 
-# Separate legitimate and fraudulent transactions
-legit = data[data.Class == 0]
-fraud = data[data.Class == 1]
+@st.cache_resource
+def prepare_and_train():
+    data = pd.read_csv('credit/creditcard.csv')
 
-# Undersample legitimate transactions to balance the classes
-legit_sample = legit.sample(n=len(fraud), random_state=2)
-data = pd.concat([legit_sample, fraud], axis=0)
+    # Separate legitimate and fraudulent transactions
+    legit = data[data.Class == 0]
+    fraud = data[data.Class == 1]
 
-# Select features and target
-X = data.drop(columns="Class", axis=1)
-y = data["Class"]
+    # Undersample legitimate transactions to balance the classes
+    legit_sample = legit.sample(n=len(fraud), random_state=2)
+    balanced_data = pd.concat([legit_sample, fraud], axis=0)
 
-# Feature scaling (assuming this was done during training)
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
+    # Select features and target
+    X = balanced_data.drop(columns="Class", axis=1)
+    y = balanced_data["Class"]
 
-# Split data into training and testing sets
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, stratify=y, random_state=2)
+    # Feature scaling
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
 
-# Train logistic regression model
-model = LogisticRegression(max_iter=1000, random_state=2)
-model.fit(X_train, y_train)
+    # Split data into training and testing sets
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_scaled, y, test_size=0.2, stratify=y, random_state=2
+    )
 
-# Evaluate model performance
-train_acc = accuracy_score(model.predict(X_train), y_train)
-test_acc = accuracy_score(model.predict(X_test), y_test)
+    # Train logistic regression model
+    model = LogisticRegression(max_iter=1000, random_state=2)
+    model.fit(X_train, y_train)
 
+    # Evaluate model performance
+    train_acc = accuracy_score(model.predict(X_train), y_train)
+    test_acc = accuracy_score(model.predict(X_test), y_test)
+
+    return model, scaler, X.columns.tolist(), train_acc, test_acc, data, legit, fraud
+
+
+model, scaler, expected_columns, train_acc, test_acc, data, legit, fraud = prepare_and_train()
+
+# -------------------------------
 # Streamlit app
+# -------------------------------
 st.title("💳 Credit Card Fraud Detection System")
 st.markdown(
     """
@@ -60,11 +77,10 @@ if uploaded_file is not None:
     with st.spinner("Processing your file..."):
         # Read the uploaded file
         input_data = pd.read_csv(uploaded_file)
-        
+
         # Ensure the input data does not have the 'Class' column and matches the feature columns
         input_data = input_data.drop(columns=['Class'], errors='ignore')
-        expected_columns = X.columns.tolist()
-        
+
         if all(col in input_data.columns for col in expected_columns):
             input_data = input_data[expected_columns]  # Reorder columns to match training data
             input_data_scaled = scaler.transform(input_data)  # Scale the input data
@@ -76,7 +92,11 @@ if uploaded_file is not None:
             fraudulent_transactions = input_data[input_data['Result'] == 'Fraudulent']
             total_transactions = len(input_data)
             fraudulent_transactions_count = len(fraudulent_transactions)
-            fraud_percentage = (fraudulent_transactions_count / total_transactions) * 100
+            fraud_percentage = (
+                (fraudulent_transactions_count / total_transactions) * 100
+                if total_transactions > 0 else 0
+            )
+            total_fraud_amount = fraudulent_transactions['Amount'].sum()
 
             # Select relevant columns for display
             columns_to_display = ['Time', 'Amount', 'Result']
@@ -87,6 +107,7 @@ if uploaded_file is not None:
                 st.metric("Total Transactions", total_transactions)
                 st.metric("Fraudulent Transactions", fraudulent_transactions_count)
                 st.metric("Percentage of Fraudulent Transactions", f"{fraud_percentage:.2f}%")
+                st.metric("Total amount in fraudulent transactions", f"{total_fraud_amount:,.2f}")
                 st.subheader("Fraudulent Transactions Data")
                 st.dataframe(fraudulent_transactions_display)
 
@@ -111,15 +132,18 @@ if uploaded_file is not None:
 
                 # Boxplot
                 fig2, ax2 = plt.subplots()
-                sns.boxplot(x='Class', y='Amount', data=data, ax=ax2, palette='Set2')
+                sns.boxplot(x='Class', y='Amount', data=data, ax=ax2, hue='Class', palette='Set2', legend=False)
                 ax2.set_title("Transaction Amount Distribution")
+                ax2.set_xticks([0, 1])
                 ax2.set_xticklabels(['Legitimate', 'Fraudulent'])
                 st.pyplot(fig2)
 
                 # Bar Chart: Fraudulent vs Legitimate Transactions
                 fig3, ax3 = plt.subplots()
-                data['Class'].value_counts().plot(kind='bar', ax=ax3, color=['#66b3ff', '#ff9999'])
+                counts = data['Class'].value_counts().sort_index()
+                counts.plot(kind='bar', ax=ax3, color=['#66b3ff', '#ff9999'])
                 ax3.set_title("Fraudulent vs Legitimate Transactions")
+                ax3.set_xticks(range(len(counts)))
                 ax3.set_xticklabels(['Legitimate', 'Fraudulent'], rotation=0)
                 ax3.set_ylabel("Count")
                 st.pyplot(fig3)
@@ -148,6 +172,7 @@ if uploaded_file is not None:
                     ax6.set_ylabel('Fraudulent Transactions')
                     st.pyplot(fig6)
         else:
-            st.error("Uploaded file does not match the expected format. Please ensure the columns match the training data.")
+            missing = [c for c in expected_columns if c not in input_data.columns]
+            st.error(f"Uploaded file does not match the expected format. Missing columns: {missing}")
 else:
     st.info("Please upload a CSV file to see predictions.")
