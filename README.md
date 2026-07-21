@@ -2,7 +2,7 @@
 
 A web application for detecting fraudulent credit card transactions using **Streamlit** and **Logistic Regression**. This tool allows users to upload transaction data, predict fraudulent activities, and analyze transaction trends.
 
-## 🚀 Features
+## Features
 - **Fraud Detection**: Predict fraudulent transactions from uploaded datasets.
 - **Interactive Visualizations**: Analyze trends in fraud and transaction patterns.
 - **User-Friendly Interface**: Simple and intuitive application built with Streamlit.
@@ -15,7 +15,7 @@ A web application for detecting fraudulent credit card transactions using **Stre
   - `pandas`: Data manipulation.
   - `matplotlib` & `seaborn`: Data visualization.
 
-## 📂 Project Structure
+## Project Structure
 ```
 credit/
 ├── app.py             # Streamlit app script
@@ -44,17 +44,17 @@ credit/
    streamlit run app.py
    ```
 
-## 🧠 Model Details
+##  Model Details
 - Algorithm: Logistic Regression
 - Metrics: Accuracy, Precision, Recall, F1-Score
 
-## 📜 License
+## License
 This project is licensed under the MIT License. See `LICENSE` for more details.
 
-## 🤝 Contributions
+## Contributions
 Contributions are welcome! Feel free to fork this repository and submit a pull request.
 
-## 🌐 Links
+## Links
 
 - [Streamlit Documentation](https://docs.streamlit.io/)
 
