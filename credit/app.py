@@ -97,6 +97,7 @@ if uploaded_file is not None:
                 if total_transactions > 0 else 0
             )
             total_fraud_amount = fraudulent_transactions['Amount'].sum()
+            percentage_ammount = (total_fraud_amount/input_data['Amount'].sum()) * 100
 
             # Select relevant columns for display
             columns_to_display = ['Time', 'Amount', 'Result']
@@ -108,6 +109,7 @@ if uploaded_file is not None:
                 st.metric("Fraudulent Transactions", fraudulent_transactions_count)
                 st.metric("Percentage of Fraudulent Transactions", f"{fraud_percentage:.2f}%")
                 st.metric("Total amount in fraudulent transactions", f"{total_fraud_amount:,.2f}")
+                st.metric("percent in fraudulent transactions", f"{percentage_ammount:,.2f}")
                 st.subheader("Fraudulent Transactions Data")
                 st.dataframe(fraudulent_transactions_display)
 
